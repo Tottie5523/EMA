@@ -1,0 +1,29 @@
+import pandas as pd
+import numpy as np
+import tushare as ts
+
+# 获取ETH数据
+df = ts.get_k_data('ETH', start='2019-01-01', end='2021-01-01')
+df.index = pd.to_datetime(df.date)
+df = df[['open', 'high', 'low', 'close']]
+
+# 计算EMA指标
+df['ema_60'] = df.close.ewm(span=60).mean()
+df['ema_10'] = df.close.ewm(span=10).mean()
+
+# 买入信号
+df['buy_signal'] = np.where((df.close > df.ema_60) & (df.close.shift(1) < df.ema_60.shift(1)), 1, 0)
+
+# 卖出信号
+df['sell_signal'] = np.where((df.close < df.ema_10) & (df.close.shift(1) > df.ema_10.shift(1)), -1, 0)
+
+# 计算每日收益率
+df['pct_change'] = df.close.pct_change()
+
+# 计算策略收益率
+df['strategy_return'] = df.pct_change() * (df.buy_signal.shift(1) + df.sell_signal.shift(1))
+
+# 计算累计收益率
+df['cum_return'] = (1 + df.strategy_return).cumprod()
+
+print(df.tail())
